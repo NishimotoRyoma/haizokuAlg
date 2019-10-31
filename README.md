@@ -20,6 +20,11 @@ In the university I belong to, the decision of the assignment of the seminar is 
     			整数値を入力したtxtファイル
     			講義の定員数をここに入力する。
 
+		順位.txt
+			２以上の整数値を入力したtxtファイル
+			どの順位の希望までに割り当てを収めたいかを入力する。
+			choice.csvの選択nより大きい値を設定するとエラーが出る。
+
 出力データ
 		割り当て.csv : {id,class,rank}
     			idは学生の学籍番号
@@ -31,7 +36,8 @@ In the university I belong to, the decision of the assignment of the seminar is 
     			先生ごとの配属される学生の一覧
 
 		例外処理学生につき要確認.csv : {id,class,onoff,rank}
-    			人気のある講義のみを選択しすぎた上に全ての抽選で弾かれた学生(onoff=-1)か、
+    			人気のある講義のみを選択しすぎた上に全ての抽選で弾かれた学生(onoff=-1,便宜上classに入力はあ
+　　　			るが、意味をなしてない)か、
 　　 			アンケートにほとんど記入をしなかったために、講義が割り当てられなかった学生(onoff=0,便宜上classに入力はあ
 　　　			るが、意味をなしてない)
     			のいずれかが存在した場合に例外的に出力されるファイル。
@@ -66,9 +72,7 @@ In the university I belong to, the decision of the assignment of the seminar is 
 
 	ChoiceAlgクラス
 		動作1を忠実に実装するクラス。mainAlgにて配属を行う。
-		#selIndex = len(choice2.columns)のコメントアウトを外し、
-		selIndex=5をコメントアウトすると、配属制限を外すことができる。
-		ここの値をいじるだけで、配属制限を変更することもできる。
+
 
 	ModifySwapクラス
 		学生同士の配属先を交換するメソッドを実装したクラス
@@ -84,6 +88,6 @@ In the university I belong to, the decision of the assignment of the seminar is 
 		1 ChoiceAlgクラスによる仮配属を行う。配属が完了したものにはonoff=1を、未確定のものには0が与えられる
 		2 DoSwapクラスにて、onoff=0の学生を配属させるため、2位以下の希望で配属された学生との交換を試みる。穏便に交換可能なら配属先を交換する
 		3 DoSwapクラスにて、onoff=0の学生を配属させるため、1位希望で配属された学生との交換を試みる。穏便に交換可能なら配属先を交換する
-		4 以上の手順でも配属不可能な学生は、例外的にアンケート結果の5位以降の配属先に配属させる。配属後は例外としてonoff=-1としておく。
+		4 以上の手順でも配属不可能な学生は、例外的にアンケート結果の(設定希望順位+1)位以降の配属先に配属させる。配属後は例外としてonoff=-1としておく。
 		5 4の手順にて、5位以降の配属先が未入力である可能性が考えられる。この場合は依然としてonoff=0のままとなる。
 		6 1~5の結果を出力する。出力内容は出力データの通り。
