@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
+import numpy as np
 
 class ExamineKey:
     #This class examine whether the column is the primary key or not.
@@ -23,12 +24,14 @@ class ExamineKey:
    
 class ChoiceAlg:
     #This class is the choice algorithm.
-    def __init__(self,M,choiceData,classData,res):
+    def __init__(self,M,choiceData,classData,res,R):
         #M : クラス定員
         #choice : 学生のアンケート結果
         #class : 講義表
         #res : 出力表
+        #R : 何位まで見るか
         self.M=M
+        self.R=R
         self.choice=choiceData
         self.classData=classData
         self.res=res
@@ -50,8 +53,8 @@ class ChoiceAlg:
         class2=self.classData
         res2=self.res
         #selIndex = len(choice2.columns)
-        #選択肢の最後まで見るのではなく、4位までに収まるように修正した。
-        selIndex=5
+        #選択肢の最後まで見るのではなく、R-1位までに収まるように修正した。
+        selIndex=self.R
         
         for i in range(selIndex):
             if (i+1) == selIndex : break
@@ -133,10 +136,11 @@ class ModifySwap:
 
                 
 class DoSwap:
-    def __init__(self,choiceData,classData,res):
+    def __init__(self,choiceData,classData,res,R):
         self.choiceD = choiceData
         self.classD = classData
         self.res = res
+        self.R = R
     
     def returnChoiceData(self):
         return self.choiceD
@@ -175,7 +179,7 @@ class DoSwap:
             akiclass=self.classD.loc[self.classD["fullflag"]==0]
             #残っている学生のidを出力する
             gid=nokoriRes.iloc[g,0]
-            gchoice=self.choiceD.loc[self.choiceD.iloc[:,0]==gid].iloc[0,2:5]
+            gchoice=self.choiceD.loc[self.choiceD.iloc[:,0]==gid].iloc[0,2:self.R]
             FinishFlag=0
             #残り学生の選択を一つずつ見ていき、穏便に交換できそうなら交換する
             for gc in range(len(gchoice)):                
@@ -184,7 +188,7 @@ class DoSwap:
                 if len(yasasiigakusei)>0:
                     yasasiichoice=self.choiceD[self.choiceD.iloc[:,0].isin(yasasiigakusei["id"])]
                     yasasiityuusen=yasasiigakusei["id"].sample(len(yasasiigakusei["id"]))
-                    #抽選順に学生のアンケート結果を確認していき、akiclassを2~4位に書いていた場合
+                    #抽選順に学生のアンケート結果を確認していき、akiclassを2~(R-1)位に書いていた場合
                     #学生同士でswapする
                     for yg in range(len(yasasiityuusen)):
                         ygid=yasasiityuusen.iloc[yg]
@@ -192,10 +196,10 @@ class DoSwap:
                         for ac in range(len(akiclass.iloc[:,0])):
                             ackey=akiclass.iloc[ac,0]
                             #見つけたら交換する
-                            if sum(yasasiichoice.loc[yasasiichoice.iloc[:,0]==ygid].iloc[0,2:5]==ackey)>0:
+                            if sum(yasasiichoice.loc[yasasiichoice.iloc[:,0]==ygid].iloc[0,2:self.R]==ackey)>0:
                                 if FinishFlag==0:
-                                    if sum(self.choiceD.loc[self.choiceD.iloc[:,0]==gid].iloc[0,1:5]==self.res.loc[self.res["id"]==ygid,"class"].iloc[0])==1:
-                                        if sum(self.choiceD.loc[self.choiceD.iloc[:,0]==ygid].iloc[0,1:5]==ackey)==1:
+                                    if sum(self.choiceD.loc[self.choiceD.iloc[:,0]==gid].iloc[0,1:self.R]==self.res.loc[self.res["id"]==ygid,"class"].iloc[0])==1:
+                                        if sum(self.choiceD.loc[self.choiceD.iloc[:,0]==ygid].iloc[0,1:self.R]==ackey)==1:
                                             self.res.loc[self.res["id"]==gid,"class"]=ackey
                                             swapins1=ModifySwap(self.choiceD,self.classD,self.res)
                                             swapins1.swap(gid,ygid)
@@ -212,6 +216,13 @@ if __name__=="__main__":
     M = Txt.read()
     Txt.close()
     M = int(M)
+    
+    Txt2 = open("順位.txt")
+    R = Txt2.read()
+    Txt2.close()
+    R=int(R)
+    R=R+1
+    
     ClassFile = pd.read_csv("class.csv")
     ChoiceFile = pd.read_csv("choice.csv")
     
@@ -244,7 +255,7 @@ if __name__=="__main__":
         res["onoff"]=0
         res["rank"]=1
         
-        tempclass=ChoiceAlg(M=M,choiceData=ChoiceFile,classData=ClassFile,res=res)
+        tempclass=ChoiceAlg(M=M,R=R,choiceData=ChoiceFile,classData=ClassFile,res=res)
         AlgResList=tempclass.mainAlg()
         AlgRes=AlgResList[0]
         AlgCla=AlgResList[1]
@@ -259,11 +270,11 @@ if __name__=="__main__":
             if(not(crossSum.iloc[0,crossSum.columns==cc].empty)):
                 AlgCla.loc[cindex,"残枠"]=M-crossSum.iloc[0,crossSum.columns==cc][0]
 
-        Swap1=DoSwap(ChoiceFile,AlgCla,AlgRes)
+        Swap1=DoSwap(ChoiceFile,AlgCla,AlgRes,R)
         Swap1.swapAlg(False)
         Swa1Res=Swap1.returnRes() 
         Swa1Cla=Swap1.returnClassData()
-        Swap2=DoSwap(ChoiceFile,Swa1Cla,Swa1Res)
+        Swap2=DoSwap(ChoiceFile,Swa1Cla,Swa1Res,R)
         Swap2.swapAlg(True)
         Swa2Res=Swap2.returnRes() 
         Swa2Cla=Swap2.returnClassData()
@@ -274,14 +285,19 @@ if __name__=="__main__":
             muriID=Swa2Res.loc[Swa2Res["onoff"]==0,"id"]
             for muri in range(len(muriID)):
                 murichoice=ChoiceFile.loc[ChoiceFile.iloc[:,0]==muriID.iloc[muri]]
-                murichoiceSeq=murichoice.iloc[0,5:len(murichoice.iloc[0])]
+                murichoiceSeq=murichoice.iloc[0,R:len(murichoice.iloc[0])]
                 for muriseq in range(len(murichoiceSeq)):
                     kouho=murichoiceSeq.iloc[muriseq]
-                    if Swa2Cla.loc[Swa2Cla.iloc[:,0]==kouho,"fullflag"]==0:
-                        if Swa2Res.loc[Swa2Res["id"]==muriID.iloc[muri],"onoff"]==0:
-                            Swa2Res.loc[Swa2Res["id"]==muriID.iloc[muri],"class"]=kouho
-                            #例外であることを示すためにonoff=-1としておく
-                            Swa2Res.loc[Swa2Res["id"]==muriID.iloc[muri],"onoff"]=-1
+                    ####修正 #####
+                    if sum(Swa2Cla.iloc[:,0]==kouho)!=1:
+                        Swa2Res.loc[Swa2Res["id"]==muriID.iloc[muri],"onoff"]=-1
+                    ##############
+                    else:
+                        if Swa2Cla.loc[Swa2Cla.iloc[:,0]==kouho,"fullflag"].iloc[0]==0:
+                            if Swa2Res.loc[Swa2Res["id"]==muriID.iloc[muri],"onoff"].iloc[0]==0:
+                                Swa2Res.loc[Swa2Res["id"]==muriID.iloc[muri],"class"]=kouho
+                                #例外であることを示すためにonoff=-1としておく
+                                Swa2Res.loc[Swa2Res["id"]==muriID.iloc[muri],"onoff"]=-1
 
                     
                     
