@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
 import numpy as np
+import io as io
+import chardet
+import os as os
 
 class ExamineKey:
     #This class examine whether the column is the primary key or not.
@@ -212,19 +215,20 @@ class DoSwap:
 if __name__=="__main__":
     #Mはクラスの定員を指す。指定する必要がある。
     #定員が少ないと、遠くの順位が選ばれる学生が増える
-    Txt = open("定員数.txt")
+    Txt = io.open("number.txt",encoding="utf_8_sig")
     M = Txt.read()
     Txt.close()
     M = int(M)
     
-    Txt2 = open("順位.txt")
+    Txt2 = io.open("rank.txt",encoding="utf_8_sig")
     R = Txt2.read()
     Txt2.close()
     R=int(R)
     R=R+1
     
-    ClassFile = pd.read_csv("class.csv")
-    ChoiceFile = pd.read_csv("choice.csv")
+    ClassFile = pd.read_csv("class.csv",encoding="SHIFT-JIS")
+    ChoiceFile = pd.read_csv("choice.csv",encoding="SHIFT-JIS")
+    StudentFile = pd.read_csv("student.csv",encoding="SHIFT-JIS")
     
     E1 = ExamineKey(ClassFile.iloc[:,0])
     E2 = ExamineKey(ChoiceFile.iloc[:,0])
@@ -263,7 +267,7 @@ if __name__=="__main__":
         #現状の確定を差し引いた定員を求める
         AlgCla["残枠"]=M
         crossSum=pd.crosstab(AlgRes.loc[(AlgRes["onoff"]==1),:]["onoff"],
-                                AlgRes.loc[(AlgRes["onoff"]==1),:]["class"])
+                                AlgRes.loc[(AlgRes["onoff"]==1),:][AlgRes.columns[1]])
         
         for cindex in range(len(AlgCla)):
             cc=AlgCla.iloc[cindex,0]
@@ -282,7 +286,7 @@ if __name__=="__main__":
         
         #もしこの交換でも割り振れない学生がいた場合(ほとんどあり得ないが)
         if not(Swa2Res.loc[Swa2Res["onoff"]==0].empty):
-            muriID=Swa2Res.loc[Swa2Res["onoff"]==0,"id"]
+            muriID=Swa2Res.loc[Swa2Res["onoff"]==0,Swa2Res.columns[0]]
             for muri in range(len(muriID)):
                 murichoice=ChoiceFile.loc[ChoiceFile.iloc[:,0]==muriID.iloc[muri]]
                 murichoiceSeq=murichoice.iloc[0,R:len(murichoice.iloc[0])]
@@ -290,36 +294,41 @@ if __name__=="__main__":
                     kouho=murichoiceSeq.iloc[muriseq]
                     ####修正 #####
                     if sum(Swa2Cla.iloc[:,0]==kouho)!=1:
-                        Swa2Res.loc[Swa2Res["id"]==muriID.iloc[muri],"onoff"]=-1
+                        Swa2Res.loc[Swa2Res[Swa2Res.columns[0]]==muriID.iloc[muri],"onoff"]=-1
                     ##############
                     else:
                         if Swa2Cla.loc[Swa2Cla.iloc[:,0]==kouho,"fullflag"].iloc[0]==0:
-                            if Swa2Res.loc[Swa2Res["id"]==muriID.iloc[muri],"onoff"].iloc[0]==0:
-                                Swa2Res.loc[Swa2Res["id"]==muriID.iloc[muri],"class"]=kouho
+                            if Swa2Res.loc[Swa2Res[Swa2Res.columns[0]]==muriID.iloc[muri],"onoff"].iloc[0]==0:
+                                Swa2Res.loc[Swa2Res[Swa2Res.columns[0]]==muriID.iloc[muri],Swa2Res.columns[1]]=kouho
                                 #例外であることを示すためにonoff=-1としておく
-                                Swa2Res.loc[Swa2Res["id"]==muriID.iloc[muri],"onoff"]=-1
+                                Swa2Res.loc[Swa2Res[Swa2Res.columns[0]]==muriID.iloc[muri],"onoff"]=-1
 
                     
                     
         
         FCla=Swa2Cla
         FRes=Swa2Res
-        
+        FRes["student"]=""
         #出力データの作成
+        for cindex in range(len(FRes)):
+            cc=FRes.iloc[cindex,0]
+            FRes.loc[(FRes.index==cindex),"student"]=StudentFile.loc[(StudentFile[StudentFile.columns[0]]==cc),StudentFile.columns[1]]
+        
+        
         for cindex in range(len(FCla)):
             cc=FCla.iloc[cindex,0]
-            writeData=FRes.loc[(FRes["class"]==cc),"id"]
-            writeName=FCla.loc[(FCla["クラスキー"]==cc),"クラス名称"][cindex]+".csv"
+            writeData=FRes.loc[(FRes[FRes.columns[1]]==cc),(FRes.columns[0],"student")]
+            writeName=FCla.loc[(FCla[FCla.columns[0]]==cc),FCla.columns[1]][cindex]+".csv"
             
             #writeData.to_csv(writeName,encoding="utf-8")
             writeData.to_csv(writeName,encoding="Shift-JIS")
         writeData=FRes
         writeName="割り当て.csv"
         #writeData.to_csv(writeName,columns=["id","class","rank"],encoding="utf-8")
-        writeData.to_csv(writeName,columns=["id","class","rank"],encoding="Shift-JIS")
+        writeData.to_csv(writeName,columns=[writeData.columns[0],writeData.columns[1],"rank"],encoding="Shift-JIS")
         
         if not(FRes.loc[FRes["onoff"]!=1].empty):
             writeName="例外処理学生につき要確認.csv"
             writeData=FRes.loc[FRes["onoff"]==-1]
             #writeData.to_csv(writeName,columns=["id","class","rank"],encoding="utf-8")
-            writeData.to_csv(writeName,columns=["id","class","onoff","rank"],encoding="Shift-JIS")
+            writeData.to_csv(writeName,columns=[writeData.columns[0],writeData.columns[1],"onoff","rank"],encoding="Shift-JIS")
